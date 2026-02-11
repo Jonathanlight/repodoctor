@@ -5,6 +5,8 @@ use crate::analyzers::traits::{Issue, Severity};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
+    /// Preset to inherit from: strict, balanced, relaxed
+    pub extends: Option<String>,
     pub severity_threshold: Option<String>,
     pub ignore: Option<IgnoreConfig>,
 }
@@ -69,12 +71,71 @@ impl Config {
         let config_path = project_path.join(".repodoctor.yml");
         if config_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&config_path) {
-                if let Ok(config) = serde_yaml::from_str::<Config>(&content) {
+                if let Ok(mut config) = serde_yaml::from_str::<Config>(&content) {
+                    config.apply_preset();
                     return config;
                 }
             }
         }
         Config::default()
+    }
+
+    fn apply_preset(&mut self) {
+        let preset = match self.extends.as_deref() {
+            Some("strict") => Some(Self::preset_strict()),
+            Some("balanced") => Some(Self::preset_balanced()),
+            Some("relaxed") => Some(Self::preset_relaxed()),
+            _ => None,
+        };
+
+        if let Some(preset) = preset {
+            // Preset provides defaults; user values take precedence
+            if self.severity_threshold.is_none() {
+                self.severity_threshold = preset.severity_threshold;
+            }
+            if self.ignore.is_none() {
+                self.ignore = preset.ignore;
+            }
+        }
+    }
+
+    fn preset_strict() -> Config {
+        Config {
+            extends: None,
+            severity_threshold: Some("info".to_string()),
+            ignore: None,
+        }
+    }
+
+    fn preset_balanced() -> Config {
+        Config {
+            extends: None,
+            severity_threshold: Some("low".to_string()),
+            ignore: Some(IgnoreConfig {
+                paths: None,
+                rules: Some(vec![
+                    "DOC-003".to_string(),
+                    "DOC-005".to_string(),
+                ]),
+            }),
+        }
+    }
+
+    fn preset_relaxed() -> Config {
+        Config {
+            extends: None,
+            severity_threshold: Some("medium".to_string()),
+            ignore: Some(IgnoreConfig {
+                paths: None,
+                rules: Some(vec![
+                    "DOC-003".to_string(),
+                    "DOC-005".to_string(),
+                    "DOC-006".to_string(),
+                    "STR-005".to_string(),
+                    "CFG-004".to_string(),
+                ]),
+            }),
+        }
     }
 }
 
@@ -129,6 +190,7 @@ mod tests {
     #[test]
     fn test_min_severity_high() {
         let config = Config {
+            extends: None,
             severity_threshold: Some("high".to_string()),
             ignore: None,
         };
@@ -138,6 +200,7 @@ mod tests {
     #[test]
     fn test_is_rule_ignored() {
         let config = Config {
+            extends: None,
             severity_threshold: None,
             ignore: Some(IgnoreConfig {
                 paths: None,
@@ -152,6 +215,7 @@ mod tests {
     #[test]
     fn test_is_path_ignored() {
         let config = Config {
+            extends: None,
             severity_threshold: None,
             ignore: Some(IgnoreConfig {
                 paths: Some(vec!["vendor/".to_string(), "node_modules/".to_string()]),
@@ -166,6 +230,7 @@ mod tests {
     #[test]
     fn test_filter_issues_by_severity() {
         let config = Config {
+            extends: None,
             severity_threshold: Some("medium".to_string()),
             ignore: None,
         };
@@ -186,6 +251,7 @@ mod tests {
     #[test]
     fn test_filter_issues_by_rule() {
         let config = Config {
+            extends: None,
             severity_threshold: None,
             ignore: Some(IgnoreConfig {
                 paths: None,
@@ -204,6 +270,7 @@ mod tests {
     #[test]
     fn test_filter_issues_by_path() {
         let config = Config {
+            extends: None,
             severity_threshold: None,
             ignore: Some(IgnoreConfig {
                 paths: Some(vec!["vendor/".to_string()]),
@@ -219,5 +286,45 @@ mod tests {
         assert_eq!(filtered.len(), 2);
         assert_eq!(filtered[0].id, "B");
         assert_eq!(filtered[1].id, "C");
+    }
+
+    #[test]
+    fn test_preset_strict() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join(".repodoctor.yml"), "extends: strict\n").unwrap();
+        let config = Config::load(tmp.path());
+        assert_eq!(config.min_severity(), Severity::Info);
+        assert!(config.ignore.is_none());
+    }
+
+    #[test]
+    fn test_preset_balanced() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join(".repodoctor.yml"), "extends: balanced\n").unwrap();
+        let config = Config::load(tmp.path());
+        assert_eq!(config.min_severity(), Severity::Low);
+        assert!(config.is_rule_ignored("DOC-003"));
+        assert!(config.is_rule_ignored("DOC-005"));
+    }
+
+    #[test]
+    fn test_preset_relaxed() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join(".repodoctor.yml"), "extends: relaxed\n").unwrap();
+        let config = Config::load(tmp.path());
+        assert_eq!(config.min_severity(), Severity::Medium);
+        assert!(config.is_rule_ignored("DOC-003"));
+        assert!(config.is_rule_ignored("STR-005"));
+        assert!(config.is_rule_ignored("CFG-004"));
+    }
+
+    #[test]
+    fn test_preset_user_override() {
+        let tmp = TempDir::new().unwrap();
+        let yaml = "extends: relaxed\nseverity_threshold: high\n";
+        fs::write(tmp.path().join(".repodoctor.yml"), yaml).unwrap();
+        let config = Config::load(tmp.path());
+        // User override takes precedence over preset
+        assert_eq!(config.min_severity(), Severity::High);
     }
 }

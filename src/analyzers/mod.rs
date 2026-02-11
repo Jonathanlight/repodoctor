@@ -6,6 +6,7 @@ pub mod nextjs;
 pub mod security;
 pub mod structure;
 pub mod symfony;
+pub mod testing;
 pub mod traits;
 
 pub use config_files::ConfigAnalyzer;
@@ -16,3 +17,4 @@ pub use nextjs::NextJsAnalyzer;
 pub use security::SecurityAnalyzer;
 pub use structure::StructureAnalyzer;
 pub use symfony::SymfonyAnalyzer;
+pub use testing::TestingAnalyzer;

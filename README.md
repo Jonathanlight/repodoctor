@@ -61,6 +61,7 @@ repodoctor scan [PATH] [OPTIONS]
 | `--severity <level>` | Minimum severity to display (`info`, `low`, `medium`, `high`, `critical`) |
 | `--ci` | CI mode: exit code 1 if issues exceed threshold |
 | `--fail-on <level>` | Severity threshold for CI failure (default: `high`) |
+| `--only <analyzers>` | Comma-separated list of analyzers to run (e.g., `security,deps,testing`) |
 
 **Example output:**
 
@@ -131,6 +132,9 @@ Generates a `.repodoctor.yml` with framework-appropriate defaults.
 Create a `.repodoctor.yml` at the root of your project (or run `repodoctor init`):
 
 ```yaml
+# Inherit from a preset: strict, balanced, relaxed
+extends: balanced
+
 # Minimum severity to report (info, low, medium, high, critical)
 severity_threshold: low
 
@@ -140,8 +144,18 @@ ignore:
     - vendor/
     - node_modules/
   rules:
-    - DOC-003  # Skip CHANGELOG check
+    - DOC-003  # Skip CONTRIBUTING check
 ```
+
+### Presets
+
+| Preset | Severity Threshold | Ignored Rules |
+|--------|-------------------|---------------|
+| `strict` | `info` (all issues) | None |
+| `balanced` | `low` | DOC-003, DOC-005 |
+| `relaxed` | `medium` | DOC-003, DOC-005, DOC-006, STR-005, CFG-004 |
+
+User values in `.repodoctor.yml` override preset defaults.
 
 ## CI/CD Integration
 
@@ -246,6 +260,15 @@ repo-health:
 | SEC-001 | Critical | Hardcoded secrets in source code | No |
 | SEC-002 | High | `.env` file committed to repository | No |
 | SEC-003 | Medium | Sensitive files not in `.gitignore` | Yes |
+
+#### Testing (TST-*)
+
+| ID | Severity | Title |
+|----|----------|-------|
+| TST-001 | High | No test directory found |
+| TST-002 | Medium | No test configuration found |
+| TST-003 | High | Test directory exists but contains no test files |
+| TST-004 | Medium | Low test-to-source file ratio |
 
 #### Documentation (DOC-*)
 

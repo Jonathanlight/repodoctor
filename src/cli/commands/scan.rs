@@ -66,6 +66,8 @@ fn expand_analyzer_name(name: &str) -> &str {
         "symfony" => "symfony",
         "flutter" => "flutter",
         "nextjs" | "next" => "nextjs",
+        "laravel" => "laravel",
+        "rust" | "cargo" | "rust_cargo" => "rust_cargo",
         other => other,
     }
 }
@@ -73,7 +75,18 @@ fn expand_analyzer_name(name: &str) -> &str {
 pub async fn execute(args: &ScanArgs) -> Result<()> {
     let project = Project::new(&args.path)?;
     let scanner = default_scanner();
-    let mut result = scanner.scan(&project).await?;
+    let mut result = if args.format == "table" {
+        let progress = crate::cli::progress::ScanProgress::new();
+        let res = scanner
+            .scan_with_progress(&project, |name| {
+                progress.set_analyzer(name);
+            })
+            .await?;
+        progress.finish();
+        res
+    } else {
+        scanner.scan(&project).await?
+    };
 
     let min_severity = args.min_severity();
     result.issues.retain(|i| i.severity >= min_severity);
@@ -164,5 +177,9 @@ mod tests {
         assert_eq!(expand_analyzer_name("test"), "testing");
         assert_eq!(expand_analyzer_name("next"), "nextjs");
         assert_eq!(expand_analyzer_name("structure"), "structure");
+        assert_eq!(expand_analyzer_name("laravel"), "laravel");
+        assert_eq!(expand_analyzer_name("rust"), "rust_cargo");
+        assert_eq!(expand_analyzer_name("cargo"), "rust_cargo");
+        assert_eq!(expand_analyzer_name("rust_cargo"), "rust_cargo");
     }
 }

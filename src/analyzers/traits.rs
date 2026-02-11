@@ -76,11 +76,12 @@ pub struct Issue {
     pub references: Vec<String>,
 }
 
-#[allow(dead_code)]
 #[async_trait]
 pub trait Analyzer: Send + Sync {
     fn name(&self) -> &'static str;
+    #[allow(dead_code)]
     fn description(&self) -> &'static str;
+    #[allow(dead_code)]
     fn category(&self) -> AnalyzerCategory;
     fn applies_to(&self, project: &Project) -> bool;
     async fn analyze(&self, project: &Project) -> Result<Vec<Issue>>;

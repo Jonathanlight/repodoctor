@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod output;
+pub mod progress;
 
 use clap::{Parser, Subcommand};
 

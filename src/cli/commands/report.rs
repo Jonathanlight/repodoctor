@@ -33,7 +33,14 @@ pub struct ReportArgs {
 pub async fn execute(args: &ReportArgs) -> Result<()> {
     let project = Project::new(&args.path)?;
     let scanner = default_scanner();
-    let result = scanner.scan(&project).await?;
+
+    let progress = crate::cli::progress::ScanProgress::new();
+    let result = scanner
+        .scan_with_progress(&project, |name| {
+            progress.set_analyzer(name);
+        })
+        .await?;
+    progress.finish();
 
     let reporter: Box<dyn Reporter> = match args.format.as_str() {
         "markdown" => Box::new(MarkdownReporter),

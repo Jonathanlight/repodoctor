@@ -1,18 +1,18 @@
 # RepoDoctor
 
-A fast CLI tool that diagnoses the health of your repository. It detects your framework, runs 50+ checks across structure, dependencies, configuration, testing, and security, then gives you an actionable health score.
+A fast CLI tool that diagnoses the health of your repository. It detects your framework, runs 70+ rules across 11 analyzers covering structure, dependencies, configuration, testing, and security, then gives you an actionable health score.
 
 Built in Rust for speed. Single binary, no runtime dependencies.
 
 ## Features
 
 - **Auto-detection** of framework (Symfony, Laravel, Flutter, Next.js, Rust, Node.js, Python)
-- **50+ rules** across 7 analyzers covering structure, deps, config, testing, security, and documentation
+- **70+ rules** across 11 analyzers covering structure, deps, config, testing, security, and documentation
 - **Health score** from 0-100 with letter grades (A-F) and per-category breakdown
 - **Auto-fix** for common issues (missing directories, `.gitignore`, `.editorconfig`)
 - **Reports** in HTML, Markdown, and SVG badge formats
 - **CI mode** with configurable exit codes for pipeline integration
-- **Framework-specific rules** for Symfony, Flutter, and Next.js projects
+- **Framework-specific rules** for Symfony, Laravel, Flutter, Next.js, and Rust/Cargo projects
 
 ## Installation
 
@@ -97,6 +97,7 @@ repodoctor fix [PATH] [OPTIONS]
 |--------|-------------|
 | `--dry-run` | Preview fixes without applying them |
 | `--auto` | Apply all fixes without prompting |
+| `--only <IDs>` | Only fix issues matching these IDs (comma-separated, e.g. `STR-001,STR-003`) |
 
 Supported auto-fixes:
 - Create missing directories (`src/`, `tests/`, `src/Controller/`, etc.)
@@ -212,10 +213,10 @@ repo-health:
 | Framework | Detection | Rules | Auto-fix |
 |-----------|-----------|-------|----------|
 | **Symfony** | `symfony.lock`, `config/bundles.php` | 20 rules (SYM-*) | Directories, .gitignore |
-| **Laravel** | `artisan` | Generic rules | Generic fixes |
+| **Laravel** | `artisan` | 11 rules (LAR-*) | Directories, .gitignore |
 | **Flutter** | `pubspec.yaml` | 18 rules (FLT-*) | Directories, .gitignore |
 | **Next.js** | `next.config.js/mjs/ts` | 22 rules (NJS-*) | Directories, .gitignore |
-| **Rust/Cargo** | `Cargo.toml` | Generic rules | Generic fixes |
+| **Rust/Cargo** | `Cargo.toml` | 8 rules (RST-*) | Directories, .gitignore |
 | **Node.js** | `package.json` | Generic rules | Generic fixes |
 | **Python** | `pyproject.toml`, `requirements.txt` | Generic rules | Generic fixes |
 
@@ -231,8 +232,8 @@ repo-health:
 | STR-002 | Medium | Missing `README.md` | No |
 | STR-003 | Medium | Missing `.gitignore` | Yes |
 | STR-004 | Low | Missing `LICENSE` file | No |
-| STR-005 | Info | Missing `CHANGELOG.md` | No |
-| STR-006 | Medium | Deep directory nesting (>6 levels) | No |
+| STR-005 | Medium | Excessive directory depth (>8 levels) | No |
+| STR-006 | Critical | Forbidden path detected | No |
 
 #### Dependencies (DEP-*)
 
@@ -240,9 +241,9 @@ repo-health:
 |----|----------|-------|
 | DEP-001 | Medium | Lock file missing |
 | DEP-002 | Low | No dependency file found |
-| DEP-003 | Info | Multiple package managers detected |
-| DEP-004 | Low | Git dependencies detected |
-| DEP-005 | Medium | Dev dependency in production section |
+| DEP-003 | Medium | Dev dependency in production section |
+| DEP-004 | Medium | Unpinned dependency versions |
+| DEP-005 | Low | Too many dependencies |
 
 #### Configuration (CFG-*)
 
@@ -348,6 +349,35 @@ repo-health:
 | NJS-051 | Low | Missing `.env.example` | Yes |
 | NJS-052 | Low | Missing `.nvmrc` | No |
 
+### Laravel Rules (LAR-*)
+
+| ID | Severity | Title | Auto-fix |
+|----|----------|-------|----------|
+| LAR-001 | High | Missing `app/Http/Controllers/` | Yes |
+| LAR-002 | Medium | Missing `routes/` directory | Yes |
+| LAR-003 | Medium | Missing `resources/views/` directory | Yes |
+| LAR-010 | Critical | Default or empty `APP_KEY` | No |
+| LAR-011 | High | Debug mode enabled in `.env` | No |
+| LAR-020 | Medium | Dev dependency in require section | No |
+| LAR-030 | High | Missing PHPUnit configuration | No |
+| LAR-031 | High | Missing `tests/` directory | Yes |
+| LAR-040 | High | Unguarded models (mass assignment) | No |
+| LAR-041 | High | Raw SQL queries detected | No |
+| LAR-050 | Medium | Missing `.gitignore` entries | Yes |
+
+### Rust/Cargo Rules (RST-*)
+
+| ID | Severity | Title | Auto-fix |
+|----|----------|-------|----------|
+| RST-001 | High | Missing `src/main.rs` or `src/lib.rs` | Yes |
+| RST-002 | Low | Missing clippy configuration | No |
+| RST-003 | Low | Missing rustfmt configuration | No |
+| RST-010 | Medium | Outdated Rust edition | No |
+| RST-011 | Medium | Missing `Cargo.lock` for binary | No |
+| RST-020 | Medium | No integration tests directory | Yes |
+| RST-030 | High | Unsafe code blocks detected | No |
+| RST-040 | Medium | Missing `.gitignore` entries | Yes |
+
 ## Scoring System
 
 The health score is calculated from 0-100 using weighted category scores:
@@ -393,7 +423,8 @@ repodoctor/
 │   │   │   ├── fix.rs        # Fix command
 │   │   │   ├── report.rs     # Report command
 │   │   │   └── init.rs       # Init command
-│   │   └── output.rs         # Terminal/JSON formatters
+│   │   ├── output.rs         # Terminal/JSON formatters
+│   │   └── progress.rs       # Scan progress spinner
 │   ├── core/                 # Core logic
 │   │   ├── project.rs        # Project detection
 │   │   ├── scanner.rs        # Scan orchestration
@@ -405,8 +436,10 @@ repodoctor/
 │   │   ├── config_files.rs   # Config file checks
 │   │   ├── security.rs       # Secret detection
 │   │   ├── symfony.rs        # Symfony-specific rules
+│   │   ├── laravel.rs        # Laravel-specific rules
 │   │   ├── flutter.rs        # Flutter-specific rules
-│   │   └── nextjs.rs         # Next.js-specific rules
+│   │   ├── nextjs.rs         # Next.js-specific rules
+│   │   └── rust_cargo.rs     # Rust/Cargo-specific rules
 │   ├── fixers/               # Auto-fix system
 │   │   ├── directory.rs      # Create missing directories
 │   │   ├── gitignore.rs      # Create/update .gitignore

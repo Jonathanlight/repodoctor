@@ -54,6 +54,7 @@ pub fn default_scanner() -> Scanner {
         Box::new(crate::analyzers::DependenciesAnalyzer),
         Box::new(crate::analyzers::ConfigAnalyzer),
         Box::new(crate::analyzers::SecurityAnalyzer),
+        Box::new(crate::analyzers::SymfonyAnalyzer),
     ];
     Scanner::new(analyzers)
 }

@@ -247,6 +247,17 @@ repo-health:
 | SEC-002 | High | `.env` file committed to repository | No |
 | SEC-003 | Medium | Sensitive files not in `.gitignore` | Yes |
 
+#### Documentation (DOC-*)
+
+| ID | Severity | Title |
+|----|----------|-------|
+| DOC-001 | Medium | README.md is too short |
+| DOC-002 | Low | README.md missing Installation section |
+| DOC-003 | Info | Missing `CONTRIBUTING.md` |
+| DOC-004 | Medium | LICENSE file appears incomplete |
+| DOC-005 | Info | Missing `CODE_OF_CONDUCT.md` |
+| DOC-006 | Low | README.md missing Usage section |
+
 ### Symfony Rules (SYM-*)
 
 | ID | Severity | Title | Auto-fix |

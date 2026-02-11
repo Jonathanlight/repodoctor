@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::time::{Duration, Instant};
 
 use crate::analyzers::traits::{Analyzer, Issue};
+use crate::core::config::Config;
 use crate::core::project::Project;
 use crate::core::score::HealthScore;
 
@@ -24,6 +25,7 @@ impl Scanner {
 
     pub async fn scan(&self, project: &Project) -> Result<ScanResult> {
         let start = Instant::now();
+        let config = Config::load(&project.path);
         let mut all_issues: Vec<Issue> = Vec::new();
 
         for analyzer in &self.analyzers {
@@ -32,6 +34,9 @@ impl Scanner {
                 all_issues.extend(issues);
             }
         }
+
+        // Apply config filters (severity threshold, ignored rules/paths)
+        all_issues = config.filter_issues(all_issues);
 
         // Sort issues by severity (Critical first)
         all_issues.sort_by(|a, b| b.severity.cmp(&a.severity));
@@ -54,6 +59,7 @@ pub fn default_scanner() -> Scanner {
         Box::new(crate::analyzers::DependenciesAnalyzer),
         Box::new(crate::analyzers::ConfigAnalyzer),
         Box::new(crate::analyzers::SecurityAnalyzer),
+        Box::new(crate::analyzers::DocumentationAnalyzer),
         Box::new(crate::analyzers::SymfonyAnalyzer),
         Box::new(crate::analyzers::FlutterAnalyzer),
         Box::new(crate::analyzers::NextJsAnalyzer),
@@ -111,6 +117,54 @@ mod tests {
         let result = scanner.scan(&project).await.unwrap();
         for window in result.issues.windows(2) {
             assert!(window[0].severity >= window[1].severity);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_scanner_respects_config_severity_threshold() {
+        let tmp = TempDir::new().unwrap();
+        let project = make_project(&tmp);
+
+        // First scan without config to get baseline
+        let scanner = default_scanner();
+        let baseline = scanner.scan(&project).await.unwrap();
+        let has_low = baseline.issues.iter().any(|i| {
+            i.severity == crate::analyzers::traits::Severity::Low
+                || i.severity == crate::analyzers::traits::Severity::Info
+        });
+
+        if has_low {
+            // Now scan with config that filters low/info
+            fs::write(
+                tmp.path().join(".repodoctor.yml"),
+                "severity_threshold: medium\n",
+            )
+            .unwrap();
+            let result = scanner.scan(&project).await.unwrap();
+            assert!(result.issues.iter().all(|i| {
+                i.severity >= crate::analyzers::traits::Severity::Medium
+            }));
+            assert!(result.issues.len() < baseline.issues.len());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_scanner_respects_config_ignored_rules() {
+        let tmp = TempDir::new().unwrap();
+        let project = make_project(&tmp);
+
+        let scanner = default_scanner();
+        let baseline = scanner.scan(&project).await.unwrap();
+
+        if let Some(first_issue) = baseline.issues.first() {
+            let rule_to_ignore = first_issue.id.clone();
+            fs::write(
+                tmp.path().join(".repodoctor.yml"),
+                format!("ignore:\n  rules:\n    - {}\n", rule_to_ignore),
+            )
+            .unwrap();
+            let result = scanner.scan(&project).await.unwrap();
+            assert!(result.issues.iter().all(|i| i.id != rule_to_ignore));
         }
     }
 }

@@ -7,6 +7,7 @@ use crate::core::project::Project;
 use crate::core::scanner::default_scanner;
 use crate::reporters::badge::BadgeGenerator;
 use crate::reporters::html::HtmlReporter;
+use crate::reporters::json::JsonReporter;
 use crate::reporters::markdown::MarkdownReporter;
 use crate::reporters::traits::Reporter;
 
@@ -36,6 +37,7 @@ pub async fn execute(args: &ReportArgs) -> Result<()> {
 
     let reporter: Box<dyn Reporter> = match args.format.as_str() {
         "markdown" => Box::new(MarkdownReporter),
+        "json" => Box::new(JsonReporter),
         _ => Box::new(HtmlReporter),
     };
 

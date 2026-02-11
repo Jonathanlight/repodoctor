@@ -51,6 +51,9 @@ impl Scanner {
 pub fn default_scanner() -> Scanner {
     let analyzers: Vec<Box<dyn Analyzer>> = vec![
         Box::new(crate::analyzers::StructureAnalyzer),
+        Box::new(crate::analyzers::DependenciesAnalyzer),
+        Box::new(crate::analyzers::ConfigAnalyzer),
+        Box::new(crate::analyzers::SecurityAnalyzer),
     ];
     Scanner::new(analyzers)
 }

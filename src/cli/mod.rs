@@ -16,4 +16,8 @@ pub enum Commands {
     Scan(commands::scan::ScanArgs),
     /// Auto-fix detected issues
     Fix(commands::fix::FixArgs),
+    /// Generate a health report
+    Report(commands::report::ReportArgs),
+    /// Initialize a .repodoctor.yml configuration file
+    Init(commands::init::InitArgs),
 }

@@ -1,5 +1,6 @@
 pub mod config_files;
 pub mod dependencies;
+pub mod documentation;
 pub mod flutter;
 pub mod nextjs;
 pub mod security;
@@ -9,6 +10,7 @@ pub mod traits;
 
 pub use config_files::ConfigAnalyzer;
 pub use dependencies::DependenciesAnalyzer;
+pub use documentation::DocumentationAnalyzer;
 pub use flutter::FlutterAnalyzer;
 pub use nextjs::NextJsAnalyzer;
 pub use security::SecurityAnalyzer;

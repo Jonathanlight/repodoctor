@@ -14,4 +14,6 @@ pub struct Cli {
 pub enum Commands {
     /// Scan a project for health issues
     Scan(commands::scan::ScanArgs),
+    /// Auto-fix detected issues
+    Fix(commands::fix::FixArgs),
 }

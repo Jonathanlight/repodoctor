@@ -55,6 +55,8 @@ pub fn default_scanner() -> Scanner {
         Box::new(crate::analyzers::ConfigAnalyzer),
         Box::new(crate::analyzers::SecurityAnalyzer),
         Box::new(crate::analyzers::SymfonyAnalyzer),
+        Box::new(crate::analyzers::FlutterAnalyzer),
+        Box::new(crate::analyzers::NextJsAnalyzer),
     ];
     Scanner::new(analyzers)
 }

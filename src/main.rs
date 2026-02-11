@@ -1,6 +1,7 @@
 mod analyzers;
 mod cli;
 mod core;
+mod fixers;
 mod frameworks;
 mod utils;
 
@@ -16,6 +17,9 @@ async fn main() -> Result<()> {
     match &cli.command {
         Commands::Scan(args) => {
             cli::commands::scan::execute(args).await?;
+        }
+        Commands::Fix(args) => {
+            cli::commands::fix::execute(args).await?;
         }
     }
 

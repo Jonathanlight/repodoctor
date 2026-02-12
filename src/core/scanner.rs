@@ -24,12 +24,21 @@ impl Scanner {
     }
 
     pub async fn scan(&self, project: &Project) -> Result<ScanResult> {
+        self.scan_with_progress(project, |_| {}).await
+    }
+
+    pub async fn scan_with_progress<F: Fn(&str)>(
+        &self,
+        project: &Project,
+        on_analyzer: F,
+    ) -> Result<ScanResult> {
         let start = Instant::now();
         let config = Config::load(&project.path);
         let mut all_issues: Vec<Issue> = Vec::new();
 
         for analyzer in &self.analyzers {
             if analyzer.applies_to(project) {
+                on_analyzer(analyzer.name());
                 let issues = analyzer.analyze(project).await?;
                 all_issues.extend(issues);
             }
@@ -59,10 +68,13 @@ pub fn default_scanner() -> Scanner {
         Box::new(crate::analyzers::DependenciesAnalyzer),
         Box::new(crate::analyzers::ConfigAnalyzer),
         Box::new(crate::analyzers::SecurityAnalyzer),
+        Box::new(crate::analyzers::TestingAnalyzer),
         Box::new(crate::analyzers::DocumentationAnalyzer),
         Box::new(crate::analyzers::SymfonyAnalyzer),
         Box::new(crate::analyzers::FlutterAnalyzer),
         Box::new(crate::analyzers::NextJsAnalyzer),
+        Box::new(crate::analyzers::LaravelAnalyzer),
+        Box::new(crate::analyzers::RustCargoAnalyzer),
     ];
     Scanner::new(analyzers)
 }
@@ -146,6 +158,25 @@ mod tests {
             }));
             assert!(result.issues.len() < baseline.issues.len());
         }
+    }
+
+    #[tokio::test]
+    async fn test_scan_with_progress() {
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir(tmp.path().join("src")).unwrap();
+        let project = make_project(&tmp);
+        let scanner = default_scanner();
+        let names = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let names_clone = names.clone();
+        let result = scanner
+            .scan_with_progress(&project, move |name| {
+                names_clone.lock().unwrap().push(name.to_string());
+            })
+            .await
+            .unwrap();
+        assert!(result.duration.as_secs() < 10);
+        let collected = names.lock().unwrap();
+        assert!(!collected.is_empty(), "Progress callback should have been called");
     }
 
     #[tokio::test]

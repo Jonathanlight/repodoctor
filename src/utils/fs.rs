@@ -61,6 +61,37 @@ pub fn find_files_by_name(path: &Path, name: &str) -> Vec<std::path::PathBuf> {
     results
 }
 
+pub fn find_files_with_extension(path: &Path, ext: &str) -> Vec<std::path::PathBuf> {
+    let mut results = Vec::new();
+    let dot_ext = if ext.starts_with('.') {
+        ext.to_string()
+    } else {
+        format!(".{}", ext)
+    };
+    for entry in WalkDir::new(path)
+        .into_iter()
+        .filter_entry(|e| {
+            if e.depth() == 0 {
+                return true;
+            }
+            let n = e.file_name().to_string_lossy();
+            !n.starts_with('.')
+                && n != "node_modules"
+                && n != "vendor"
+                && n != "target"
+        })
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            let name = entry.file_name().to_string_lossy();
+            if name.ends_with(&dot_ext) {
+                results.push(entry.into_path());
+            }
+        }
+    }
+    results
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CIProvider {
     GitHubActions,

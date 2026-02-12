@@ -20,6 +20,14 @@ pub struct ScanArgs {
     /// Minimum severity to display
     #[arg(long, value_parser = ["info", "low", "medium", "high", "critical"])]
     pub severity: Option<String>,
+
+    /// CI mode: exit with code 1 if issues at or above threshold are found
+    #[arg(long)]
+    pub ci: bool,
+
+    /// Severity threshold for CI failure (default: high)
+    #[arg(long, default_value = "high", value_parser = ["low", "medium", "high", "critical"])]
+    pub fail_on: String,
 }
 
 impl ScanArgs {
@@ -30,6 +38,15 @@ impl ScanArgs {
             Some("medium") => Severity::Medium,
             Some("low") => Severity::Low,
             _ => Severity::Info,
+        }
+    }
+
+    fn fail_severity(&self) -> Severity {
+        match self.fail_on.as_str() {
+            "critical" => Severity::Critical,
+            "medium" => Severity::Medium,
+            "low" => Severity::Low,
+            _ => Severity::High,
         }
     }
 }
@@ -45,5 +62,66 @@ pub async fn execute(args: &ScanArgs) -> Result<()> {
     let formatter = OutputFormatter::new(&args.format);
     formatter.display(&result);
 
+    if args.ci {
+        let threshold = args.fail_severity();
+        let failing_count = result.issues.iter().filter(|i| i.severity >= threshold).count();
+        if failing_count > 0 {
+            std::process::exit(1);
+        }
+    }
+
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_min_severity_default() {
+        let args = ScanArgs {
+            path: PathBuf::from("."),
+            format: "table".to_string(),
+            severity: None,
+            ci: false,
+            fail_on: "high".to_string(),
+        };
+        assert_eq!(args.min_severity(), Severity::Info);
+    }
+
+    #[test]
+    fn test_min_severity_critical() {
+        let args = ScanArgs {
+            path: PathBuf::from("."),
+            format: "table".to_string(),
+            severity: Some("critical".to_string()),
+            ci: false,
+            fail_on: "high".to_string(),
+        };
+        assert_eq!(args.min_severity(), Severity::Critical);
+    }
+
+    #[test]
+    fn test_fail_severity_default() {
+        let args = ScanArgs {
+            path: PathBuf::from("."),
+            format: "table".to_string(),
+            severity: None,
+            ci: true,
+            fail_on: "high".to_string(),
+        };
+        assert_eq!(args.fail_severity(), Severity::High);
+    }
+
+    #[test]
+    fn test_fail_severity_critical() {
+        let args = ScanArgs {
+            path: PathBuf::from("."),
+            format: "table".to_string(),
+            severity: None,
+            ci: true,
+            fail_on: "critical".to_string(),
+        };
+        assert_eq!(args.fail_severity(), Severity::Critical);
+    }
 }

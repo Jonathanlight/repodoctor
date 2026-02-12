@@ -215,7 +215,7 @@ fn check_editorconfig(path: &Path, issues: &mut Vec<Issue>) {
             file: None,
             line: None,
             suggestion: Some("Create an .editorconfig file to define coding style rules".to_string()),
-            auto_fixable: false,
+            auto_fixable: true,
             references: vec!["https://editorconfig.org".to_string()],
         });
     }
